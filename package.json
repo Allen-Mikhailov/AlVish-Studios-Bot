@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/SlinkyShelf/AlVish-Studios-Bot/issues"
   },
-  "homepage": "https://github.com/SlinkyShelf/AlVish-Studios-Bot#readme"
+  "homepage": "https://github.com/SlinkyShelf/AlVish-Studios-Bot#readme",
+  "dependencies": {
+    "dotenv": "^16.0.3"
+  }
 }
