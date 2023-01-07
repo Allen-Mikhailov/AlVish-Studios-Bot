@@ -1,28 +1,46 @@
-const https = require("https");
-const fs = require("fs");
-const { Client, Events, GatewayIntentBits, Collection } = require('discord.js');
+const fs = require('fs');
+const path = require('node:path');
+const { Client, Events, GatewayIntentBits, Collection, REST, Routes } = require('discord.js');
 require('dotenv').config();
 
 // Create a new client instance
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
-client.once(Events.ClientReady, c => {
-	console.log(`Ready! Logged in as ${c.user.tag}`);
-});
+const commands = {}
+const commandsJSON = []
 
-client.commands = new Collection();
+// Loading Commands
+console.log("Loading Commands...")
 
 fs.readdirSync("./commands").map((path) => {
     const cmd = require("./commands/"+path) 
-    console.log(cmd)
-    // client.application.commands.set(cmd.data.name, cmd)
-    client.commands.set(cmd.data.name, cmd);
-})
+	commands[cmd.data.name] = cmd
+	commandsJSON.push(cmd.data.toJSON())
+});
+
+// Deploying Commands
+(async () => {
+	try {
+		console.log(`Started refreshing ${commandsJSON.length} application (/) commands.`);
+
+		// The put method is used to fully refresh all commands in the guild with the current set
+		const data = await rest.put(
+			Routes.applicationGuildCommands(process.env.CLIENTID, process.env.GUILDID),
+			{ body: commandsJSON },
+		);
+
+		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+	} catch (error) {
+		// And of course, make sure you catch and log any errors!
+		console.error(error);
+	}
+})();
 
 client.on(Events.InteractionCreate, async interaction => {
 	if (!interaction.isChatInputCommand()) return;
 
-	const command = interaction.client.commands.get(interaction.commandName);
+	const command = commands[interaction.commandName];
 
 	if (!command) {
 		console.error(`No command matching ${interaction.commandName} was found.`);
@@ -37,4 +55,8 @@ client.on(Events.InteractionCreate, async interaction => {
 	}
 });
 
-client.login(process.env.BOTTOKEN);
+client.once(Events.ClientReady, c => {
+	console.log(`Ready! Logged in as ${c.user.tag}`);
+});
+
+client.login(process.env.TOKEN);
