@@ -1,41 +1,40 @@
 const https = require("https");
 const fs = require("fs");
-const { resolveSoa } = require("dns");
-
+const { Client, Events, GatewayIntentBits, Collection } = require('discord.js');
 require('dotenv').config();
 
-const url = `https://discord.com/api/v10/applications/${process.env.APPLICATIONID}/commands`
+// Create a new client instance
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-const headers = {
-    "Authorization": `Bot ${process.env.BOTTOKEN}`
-}
+client.once(Events.ClientReady, c => {
+	console.log(`Ready! Logged in as ${c.user.tag}`);
+});
 
-const commands = []
+client.commands = new Collection();
+
 fs.readdirSync("./commands").map((path) => {
-    require("./commands/"+path).cmds.map((command) => {
-        commands.push(command)
-    })
+    const cmd = require("./commands/"+path) 
+    console.log(cmd)
+    // client.application.commands.set(cmd.data.name, cmd)
+    client.commands.set(cmd.data.name, cmd);
 })
 
-const requestOptions = {
-    hostname: 'discord.com',
-    port: 443,
-    path: `/api/v10/applications/${process.env.APPLICATIONID}/commands`,
-    method: 'POST',
-    json: commands[0],
-    headers: headers,
-}
+client.on(Events.InteractionCreate, async interaction => {
+	if (!interaction.isChatInputCommand()) return;
 
-https.request(requestOptions, (res) => {
-    res.on("data", (chunk) => {
-        console.log("Chunk", chunk)
-    })
+	const command = interaction.client.commands.get(interaction.commandName);
 
-    res.on("error", (err) => {
-        console.log(err)
-    })
+	if (!command) {
+		console.error(`No command matching ${interaction.commandName} was found.`);
+		return;
+	}
 
-    res.on("closed", (chunk) => {
-        console.log("closed")
-    })
-})
+	try {
+		await command.execute(interaction);
+	} catch (error) {
+		console.error(error);
+		await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+	}
+});
+
+client.login(process.env.BOTTOKEN);
